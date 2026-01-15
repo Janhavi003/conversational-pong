@@ -1,10 +1,11 @@
 let ball;
 let paddle;
+let score = 0;
+let misses = 0;
 
 function setup() {
   createCanvas(800, 500);
 
-  // --- Ball state (SLOWER, READABLE) ---
   ball = {
     x: width / 2,
     y: height / 2,
@@ -14,7 +15,6 @@ function setup() {
     pulse: 0,
   };
 
-  // --- Player paddle (BOTTOM, HORIZONTAL) ---
   paddle = {
     x: width / 2,
     y: height - 30,
@@ -27,6 +27,11 @@ function setup() {
 function draw() {
   background(20);
 
+  // Danger zone feedback
+  if (ball.y > height - 40) {
+    background(40, 0, 0, 40);
+  }
+
   // =========================
   // BALL MOVEMENT
   // =========================
@@ -34,20 +39,24 @@ function draw() {
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  // Left & right wall bounce
   if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
     ball.vx *= -1;
     ball.pulse = 4;
   }
 
-  // Top wall bounce
   if (ball.y - ball.radius < 0) {
     ball.vy *= -1;
     ball.pulse = 4;
   }
 
+  // MISS DETECTION
+  if (ball.y - ball.radius > height) {
+    misses++;
+    resetBall();
+  }
+
   // =========================
-  // PADDLE INPUT (HORIZONTAL)
+  // PADDLE INPUT
   // =========================
 
   let targetX = constrain(mouseX, 0, width);
@@ -72,23 +81,15 @@ function draw() {
 
   if (hit) {
     ball.vy *= -1;
-
-    // Subtle horizontal influence from paddle motion
     ball.vx += paddle.speed * 0.03;
 
+    score++;
     ball.pulse = 6;
   }
 
-  // =========================
-  // SAFETY CLAMP (DESIGN LIMITS)
-  // =========================
-
+  // Safety clamp
   ball.vx = constrain(ball.vx, -5, 5);
   ball.vy = constrain(ball.vy, -5, 5);
-
-  // =========================
-  // FEEDBACK / EASING
-  // =========================
 
   ball.pulse = lerp(ball.pulse, 0, 0.1);
 
@@ -96,7 +97,6 @@ function draw() {
   // RENDERING
   // =========================
 
-  // Ball
   noStroke();
   fill(255);
   circle(
@@ -105,7 +105,6 @@ function draw() {
     (ball.radius + ball.pulse) * 2
   );
 
-  // Paddle (stretch based on speed)
   let stretch = map(abs(paddle.speed), 0, 30, 0, 8, true);
 
   rectMode(CENTER);
@@ -117,25 +116,22 @@ function draw() {
   );
 
   // =========================
-  // DEBUG UI
+  // UI / DEBUG
   // =========================
 
-  stroke(255, 50);
-  line(width / 2, 0, width / 2, height);
-  line(0, height / 2, width, height / 2);
-
-  noStroke();
   fill(180);
   textSize(12);
   text(`FPS: ${nf(frameRate(), 2, 1)}`, 10, 20);
-  text(
-    `vx: ${nf(ball.vx, 1, 2)}, vy: ${nf(ball.vy, 1, 2)}`,
-    width - 180,
-    20
-  );
-  text(
-    `paddle speed: ${nf(paddle.speed, 1, 1)}`,
-    width - 180,
-    40
-  );
+  text(`score: ${score}`, 10, 40);
+  text(`misses: ${misses}`, 10, 60);
+}
+
+function resetBall() {
+  ball.x = width / 2;
+  ball.y = height / 2;
+
+  ball.vx = random(-2, 2);
+  ball.vy = 2.5;
+
+  ball.pulse = 10;
 }
