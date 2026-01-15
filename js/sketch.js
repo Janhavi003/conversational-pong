@@ -3,9 +3,16 @@ let paddle;
 let score = 0;
 let misses = 0;
 
+// --- Sound state ---
+let blip;
+let audioStarted = false;
+
 function setup() {
   createCanvas(800, 500);
 
+  // =========================
+  // BALL STATE
+  // =========================
   ball = {
     x: width / 2,
     y: height / 2,
@@ -15,6 +22,9 @@ function setup() {
     pulse: 0,
   };
 
+  // =========================
+  // PADDLE STATE (BOTTOM)
+  // =========================
   paddle = {
     x: width / 2,
     y: height - 30,
@@ -22,12 +32,20 @@ function setup() {
     height: 10,
     speed: 0,
   };
+
+  // =========================
+  // SOUND INIT (SILENT)
+  // =========================
+  blip = new p5.Oscillator("sine");
+  blip.freq(440);
+  blip.amp(0);
+  blip.start();
 }
 
 function draw() {
   background(20);
 
-  // Danger zone feedback
+  // Emotional danger zone feedback
   if (ball.y > height - 40) {
     background(40, 0, 0, 40);
   }
@@ -35,30 +53,35 @@ function draw() {
   // =========================
   // BALL MOVEMENT
   // =========================
-
   ball.x += ball.vx;
   ball.y += ball.vy;
 
+  // Left / right wall bounce
   if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
     ball.vx *= -1;
     ball.pulse = 4;
+    playBlip(300, 0.03, 0.15);
   }
 
+  // Top wall bounce
   if (ball.y - ball.radius < 0) {
     ball.vy *= -1;
     ball.pulse = 4;
+    playBlip(300, 0.03, 0.15);
   }
 
+  // =========================
   // MISS DETECTION
+  // =========================
   if (ball.y - ball.radius > height) {
     misses++;
+    playBlip(150, 0.15, 0.25);
     resetBall();
   }
 
   // =========================
-  // PADDLE INPUT
+  // PADDLE INPUT (HORIZONTAL)
   // =========================
-
   let targetX = constrain(mouseX, 0, width);
   paddle.speed = targetX - paddle.x;
   paddle.x += paddle.speed * 0.2;
@@ -72,7 +95,6 @@ function draw() {
   // =========================
   // BALL ↔ PADDLE COLLISION
   // =========================
-
   let hit =
     ball.y + ball.radius > paddle.y - paddle.height / 2 &&
     ball.x > paddle.x - paddle.width / 2 &&
@@ -85,18 +107,20 @@ function draw() {
 
     score++;
     ball.pulse = 6;
+
+    playBlip(600, 0.04, 0.2);
   }
 
   // Safety clamp
   ball.vx = constrain(ball.vx, -5, 5);
   ball.vy = constrain(ball.vy, -5, 5);
 
+  // Pulse easing
   ball.pulse = lerp(ball.pulse, 0, 0.1);
 
   // =========================
   // RENDERING
   // =========================
-
   noStroke();
   fill(255);
   circle(
@@ -118,7 +142,6 @@ function draw() {
   // =========================
   // UI / DEBUG
   // =========================
-
   fill(180);
   textSize(12);
   text(`FPS: ${nf(frameRate(), 2, 1)}`, 10, 20);
@@ -134,4 +157,26 @@ function resetBall() {
   ball.vy = 2.5;
 
   ball.pulse = 10;
+}
+
+// =========================
+// AUDIO CONTROL
+// =========================
+function mousePressed() {
+  if (!audioStarted) {
+    userStartAudio();
+    audioStarted = true;
+    console.log("Audio started");
+  }
+}
+
+function playBlip(freq = 440, duration = 0.05, amp = 0.3) {
+  if (!audioStarted) return;
+
+  blip.freq(freq);
+  blip.amp(amp, 0.01);
+
+  setTimeout(() => {
+    blip.amp(0, 0.05);
+  }, duration * 1000);
 }
