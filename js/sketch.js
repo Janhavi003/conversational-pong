@@ -1,17 +1,50 @@
+// =========================
+// GAME STATE
+// =========================
 let ball;
 let paddle;
 let score = 0;
 let misses = 0;
 
-// --- Sound state ---
+// =========================
+// SOUND STATE
+// =========================
 let blip;
 let audioStarted = false;
+
+// =========================
+// DIALOGUE STATE
+// =========================
+let dialogue = {
+  text: "",
+  visible: false,
+  timer: 0,
+  cooldown: 0,
+};
+
+const DIALOGUE_POOL = {
+  miss: [
+    "Missed.",
+    "Too slow.",
+    "That one slipped by.",
+    "You were late.",
+  ],
+  hit: [
+    "Nice.",
+    "Good timing.",
+    "Clean hit.",
+  ],
+  danger: [
+    "Careful.",
+    "That was close.",
+  ],
+};
 
 function setup() {
   createCanvas(800, 500);
 
   // =========================
-  // BALL STATE
+  // BALL
   // =========================
   ball = {
     x: width / 2,
@@ -23,7 +56,7 @@ function setup() {
   };
 
   // =========================
-  // PADDLE STATE (BOTTOM)
+  // PADDLE (BOTTOM)
   // =========================
   paddle = {
     x: width / 2,
@@ -34,7 +67,7 @@ function setup() {
   };
 
   // =========================
-  // SOUND INIT (SILENT)
+  // SOUND INIT
   // =========================
   blip = new p5.Oscillator("sine");
   blip.freq(440);
@@ -45,9 +78,24 @@ function setup() {
 function draw() {
   background(20);
 
-  // Emotional danger zone feedback
+  // =========================
+  // DANGER ZONE FEEDBACK
+  // =========================
   if (ball.y > height - 40) {
     background(40, 0, 0, 40);
+  }
+
+  // =========================
+  // DIALOGUE TIMERS
+  // =========================
+  if (dialogue.timer > 0) {
+    dialogue.timer--;
+  } else {
+    dialogue.visible = false;
+  }
+
+  if (dialogue.cooldown > 0) {
+    dialogue.cooldown--;
   }
 
   // =========================
@@ -56,14 +104,14 @@ function draw() {
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  // Left / right wall bounce
+  // Wall bounce (left / right)
   if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
     ball.vx *= -1;
     ball.pulse = 4;
     playBlip(300, 0.03, 0.15);
   }
 
-  // Top wall bounce
+  // Top bounce
   if (ball.y - ball.radius < 0) {
     ball.vy *= -1;
     ball.pulse = 4;
@@ -75,12 +123,13 @@ function draw() {
   // =========================
   if (ball.y - ball.radius > height) {
     misses++;
+    triggerDialogue("miss");
     playBlip(150, 0.15, 0.25);
     resetBall();
   }
 
   // =========================
-  // PADDLE INPUT (HORIZONTAL)
+  // PADDLE INPUT
   // =========================
   let targetX = constrain(mouseX, 0, width);
   paddle.speed = targetX - paddle.x;
@@ -107,15 +156,26 @@ function draw() {
 
     score++;
     ball.pulse = 6;
-
     playBlip(600, 0.04, 0.2);
+
+    if (random() < 0.3) {
+      triggerDialogue("hit");
+    }
   }
 
-  // Safety clamp
+  // =========================
+  // DANGER DIALOGUE (RARE)
+  // =========================
+  if (ball.y > height - 60 && random() < 0.01) {
+    triggerDialogue("danger", 90);
+  }
+
+  // =========================
+  // SAFETY CLAMP
+  // =========================
   ball.vx = constrain(ball.vx, -5, 5);
   ball.vy = constrain(ball.vy, -5, 5);
 
-  // Pulse easing
   ball.pulse = lerp(ball.pulse, 0, 0.1);
 
   // =========================
@@ -144,23 +204,51 @@ function draw() {
   // =========================
   fill(180);
   textSize(12);
+  textAlign(LEFT);
   text(`FPS: ${nf(frameRate(), 2, 1)}`, 10, 20);
   text(`score: ${score}`, 10, 40);
   text(`misses: ${misses}`, 10, 60);
-}
 
-function resetBall() {
-  ball.x = width / 2;
-  ball.y = height / 2;
-
-  ball.vx = random(-2, 2);
-  ball.vy = 2.5;
-
-  ball.pulse = 10;
+  // =========================
+  // DIALOGUE RENDER
+  // =========================
+  if (dialogue.visible) {
+    fill(255);
+    textSize(16);
+    textAlign(CENTER);
+    text(dialogue.text, width / 2, height / 2 - 40);
+  }
 }
 
 // =========================
-// AUDIO CONTROL
+// HELPERS
+// =========================
+function resetBall() {
+  ball.x = width / 2;
+  ball.y = height / 2;
+  ball.vx = random(-2, 2);
+  ball.vy = 2.5;
+  ball.pulse = 10;
+}
+
+function randomFrom(array) {
+  return array[Math.floor(random(array.length))];
+}
+
+function triggerDialogue(type, duration = 120) {
+  if (dialogue.cooldown > 0) return;
+
+  const options = DIALOGUE_POOL[type];
+  if (!options) return;
+
+  dialogue.text = randomFrom(options);
+  dialogue.visible = true;
+  dialogue.timer = duration;
+  dialogue.cooldown = 180;
+}
+
+// =========================
+// AUDIO
 // =========================
 function mousePressed() {
   if (!audioStarted) {
