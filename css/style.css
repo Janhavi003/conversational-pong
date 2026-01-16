@@ -2,9 +2,16 @@ html,
 body {
   margin: 0;
   padding: 0;
+  width: 100%;
+  height: 100%;
   background: #0e0e0e;
   color: #ffffff;
   font-family: monospace;
+
+  /* CENTER THE GAME */
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 canvas {

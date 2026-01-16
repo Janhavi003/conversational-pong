@@ -1,4 +1,12 @@
 // =========================
+// UI LAYOUT
+// =========================
+const UI = {
+  dialogueHeight: 80,
+  padding: 20,
+};
+
+// =========================
 // GAME STATE
 // =========================
 let ball;
@@ -20,6 +28,7 @@ let dialogue = {
   visible: false,
   timer: 0,
   cooldown: 0,
+  yOffset: -20,
 };
 
 // =========================
@@ -30,6 +39,9 @@ let emotion = {
   timer: 0,
 };
 
+// =========================
+// DIALOGUE DATA
+// =========================
 const DIALOGUE_POOL = {
   miss: {
     calm: ["Missed.", "That slipped by."],
@@ -57,15 +69,21 @@ const DIALOGUE_POOL = {
 function setup() {
   createCanvas(800, 500);
 
+  // =========================
+  // BALL
+  // =========================
   ball = {
     x: width / 2,
-    y: height / 2,
+    y: UI.dialogueHeight + (height - UI.dialogueHeight) / 2,
     radius: 8,
     vx: 2,
     vy: 2.5,
     pulse: 0,
   };
 
+  // =========================
+  // PADDLE (BOTTOM)
+  // =========================
   paddle = {
     x: width / 2,
     y: height - 30,
@@ -74,6 +92,9 @@ function setup() {
     speed: 0,
   };
 
+  // =========================
+  // SOUND INIT
+  // =========================
   blip = new p5.Oscillator("sine");
   blip.freq(440);
   blip.amp(0);
@@ -83,18 +104,28 @@ function setup() {
 function draw() {
   background(20);
 
-  if (emotion.current === "tense") {
-    background(60, 0, 0, 30);
-  }
+  // =========================
+  // DIALOGUE PANEL
+  // =========================
+  noStroke();
+  fill(10);
+  rect(0, 0, width, UI.dialogueHeight);
 
-  // Emotion decay
+  stroke(60);
+  line(0, UI.dialogueHeight, width, UI.dialogueHeight);
+
+  // =========================
+  // EMOTION DECAY
+  // =========================
   if (emotion.timer > 0) {
     emotion.timer--;
   } else {
     emotion.current = "calm";
   }
 
-  // Dialogue timers
+  // =========================
+  // DIALOGUE TIMERS
+  // =========================
   if (dialogue.timer > 0) {
     dialogue.timer--;
   } else {
@@ -105,22 +136,43 @@ function draw() {
     dialogue.cooldown--;
   }
 
-  // Ball movement
+  dialogue.yOffset = lerp(dialogue.yOffset, 0, 0.1);
+
+  // =========================
+  // GAMEPLAY SPACE
+  // =========================
+  push();
+  translate(0, UI.dialogueHeight);
+
+  // Emotional tension overlay
+  if (emotion.current === "tense") {
+    background(60, 0, 0, 30);
+  }
+
+  // =========================
+  // BALL MOVEMENT
+  // =========================
   ball.x += ball.vx;
   ball.y += ball.vy;
 
+  // Side walls
   if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
     ball.vx *= -1;
+    ball.pulse = 4;
     playBlip(300, 0.03, 0.15);
   }
 
+  // Top wall (gameplay top = 0)
   if (ball.y - ball.radius < 0) {
     ball.vy *= -1;
+    ball.pulse = 4;
     playBlip(300, 0.03, 0.15);
   }
 
-  // Miss detection
-  if (ball.y - ball.radius > height) {
+  // =========================
+  // MISS DETECTION
+  // =========================
+  if (ball.y - ball.radius > height - UI.dialogueHeight) {
     misses++;
     updateEmotion("miss");
     triggerDialogue("miss");
@@ -128,7 +180,9 @@ function draw() {
     resetBall();
   }
 
-  // Paddle input
+  // =========================
+  // PADDLE INPUT
+  // =========================
   let targetX = constrain(mouseX, 0, width);
   paddle.speed = targetX - paddle.x;
   paddle.x += paddle.speed * 0.2;
@@ -139,9 +193,11 @@ function draw() {
     width - paddle.width / 2
   );
 
-  // Paddle collision
+  // =========================
+  // BALL ↔ PADDLE COLLISION
+  // =========================
   let hit =
-    ball.y + ball.radius > paddle.y - paddle.height / 2 &&
+    ball.y + ball.radius > paddle.y - UI.dialogueHeight - paddle.height / 2 &&
     ball.x > paddle.x - paddle.width / 2 &&
     ball.x < paddle.x + paddle.width / 2 &&
     ball.vy > 0;
@@ -152,42 +208,65 @@ function draw() {
     score++;
     updateEmotion("hit");
     playBlip(600, 0.04, 0.2);
+    ball.pulse = 6;
 
     if (random() < 0.3) {
       triggerDialogue("hit");
     }
   }
 
-  // Danger awareness
-  if (ball.y > height - 60 && random() < 0.01) {
+  // =========================
+  // DANGER AWARENESS
+  // =========================
+  if (ball.y > height - UI.dialogueHeight - 60 && random() < 0.01) {
     updateEmotion("danger");
     triggerDialogue("danger", 90);
   }
 
+  // Safety clamp
   ball.vx = constrain(ball.vx, -5, 5);
   ball.vy = constrain(ball.vy, -5, 5);
   ball.pulse = lerp(ball.pulse, 0, 0.1);
 
-  // Render
+  // =========================
+  // RENDER GAME OBJECTS
+  // =========================
   noStroke();
   fill(255);
   circle(ball.x, ball.y, (ball.radius + ball.pulse) * 2);
 
   let stretch = map(abs(paddle.speed), 0, 30, 0, 8, true);
   rectMode(CENTER);
-  rect(paddle.x, paddle.y, paddle.width + stretch, paddle.height);
+  rect(
+    paddle.x,
+    paddle.y - UI.dialogueHeight,
+    paddle.width + stretch,
+    paddle.height
+  );
 
-  // UI
+  pop();
+
+  // =========================
+  // UI TEXT
+  // =========================
   fill(180);
   textSize(12);
-  text(`score: ${score}`, 10, 40);
-  text(`misses: ${misses}`, 10, 60);
+  textAlign(LEFT);
+  text(`score: ${score}`, 10, UI.dialogueHeight + 20);
+  text(`misses: ${misses}`, 10, UI.dialogueHeight + 40);
 
+  // =========================
+  // DIALOGUE RENDER
+  // =========================
   if (dialogue.visible) {
-    fill(255);
-    textSize(16);
-    textAlign(CENTER);
-    text(dialogue.text, width / 2, height / 2 - 40);
+    fill(220);
+    textSize(18);
+    textAlign(CENTER, CENTER);
+    text(
+      dialogue.text,
+      width / 2,
+      UI.dialogueHeight / 2 + dialogue.yOffset
+    );
   }
 }
 
@@ -196,7 +275,7 @@ function draw() {
 // =========================
 function resetBall() {
   ball.x = width / 2;
-  ball.y = height / 2;
+  ball.y = (height - UI.dialogueHeight) / 2;
   ball.vx = random(-2, 2);
   ball.vy = 2.5;
   ball.pulse = 10;
@@ -236,6 +315,7 @@ function triggerDialogue(type, duration = 120) {
   dialogue.visible = true;
   dialogue.timer = duration;
   dialogue.cooldown = 180;
+  dialogue.yOffset = -20;
 }
 
 // =========================
