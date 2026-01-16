@@ -22,30 +22,41 @@ let dialogue = {
   cooldown: 0,
 };
 
+// =========================
+// EMOTIONAL STATE
+// =========================
+let emotion = {
+  current: "calm",
+  timer: 0,
+};
+
 const DIALOGUE_POOL = {
-  miss: [
-    "Missed.",
-    "Too slow.",
-    "That one slipped by.",
-    "You were late.",
-  ],
-  hit: [
-    "Nice.",
-    "Good timing.",
-    "Clean hit.",
-  ],
-  danger: [
-    "Careful.",
-    "That was close.",
-  ],
+  miss: {
+    calm: ["Missed.", "That slipped by."],
+    sarcastic: [
+      "Again?",
+      "You keep missing that.",
+      "Timing is optional, apparently.",
+    ],
+    encouraging: ["It's okay. Reset."],
+    tense: ["Careful."],
+  },
+
+  hit: {
+    calm: ["Nice.", "Good."],
+    encouraging: ["You're getting better.", "Yes. That."],
+    tense: ["That was close."],
+  },
+
+  danger: {
+    calm: ["Careful."],
+    tense: ["Focus.", "Pay attention."],
+  },
 };
 
 function setup() {
   createCanvas(800, 500);
 
-  // =========================
-  // BALL
-  // =========================
   ball = {
     x: width / 2,
     y: height / 2,
@@ -55,9 +66,6 @@ function setup() {
     pulse: 0,
   };
 
-  // =========================
-  // PADDLE (BOTTOM)
-  // =========================
   paddle = {
     x: width / 2,
     y: height - 30,
@@ -66,9 +74,6 @@ function setup() {
     speed: 0,
   };
 
-  // =========================
-  // SOUND INIT
-  // =========================
   blip = new p5.Oscillator("sine");
   blip.freq(440);
   blip.amp(0);
@@ -78,16 +83,18 @@ function setup() {
 function draw() {
   background(20);
 
-  // =========================
-  // DANGER ZONE FEEDBACK
-  // =========================
-  if (ball.y > height - 40) {
-    background(40, 0, 0, 40);
+  if (emotion.current === "tense") {
+    background(60, 0, 0, 30);
   }
 
-  // =========================
-  // DIALOGUE TIMERS
-  // =========================
+  // Emotion decay
+  if (emotion.timer > 0) {
+    emotion.timer--;
+  } else {
+    emotion.current = "calm";
+  }
+
+  // Dialogue timers
   if (dialogue.timer > 0) {
     dialogue.timer--;
   } else {
@@ -98,39 +105,30 @@ function draw() {
     dialogue.cooldown--;
   }
 
-  // =========================
-  // BALL MOVEMENT
-  // =========================
+  // Ball movement
   ball.x += ball.vx;
   ball.y += ball.vy;
 
-  // Wall bounce (left / right)
   if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
     ball.vx *= -1;
-    ball.pulse = 4;
     playBlip(300, 0.03, 0.15);
   }
 
-  // Top bounce
   if (ball.y - ball.radius < 0) {
     ball.vy *= -1;
-    ball.pulse = 4;
     playBlip(300, 0.03, 0.15);
   }
 
-  // =========================
-  // MISS DETECTION
-  // =========================
+  // Miss detection
   if (ball.y - ball.radius > height) {
     misses++;
+    updateEmotion("miss");
     triggerDialogue("miss");
     playBlip(150, 0.15, 0.25);
     resetBall();
   }
 
-  // =========================
-  // PADDLE INPUT
-  // =========================
+  // Paddle input
   let targetX = constrain(mouseX, 0, width);
   paddle.speed = targetX - paddle.x;
   paddle.x += paddle.speed * 0.2;
@@ -141,9 +139,7 @@ function draw() {
     width - paddle.width / 2
   );
 
-  // =========================
-  // BALL ↔ PADDLE COLLISION
-  // =========================
+  // Paddle collision
   let hit =
     ball.y + ball.radius > paddle.y - paddle.height / 2 &&
     ball.x > paddle.x - paddle.width / 2 &&
@@ -153,9 +149,8 @@ function draw() {
   if (hit) {
     ball.vy *= -1;
     ball.vx += paddle.speed * 0.03;
-
     score++;
-    ball.pulse = 6;
+    updateEmotion("hit");
     playBlip(600, 0.04, 0.2);
 
     if (random() < 0.3) {
@@ -163,55 +158,31 @@ function draw() {
     }
   }
 
-  // =========================
-  // DANGER DIALOGUE (RARE)
-  // =========================
+  // Danger awareness
   if (ball.y > height - 60 && random() < 0.01) {
+    updateEmotion("danger");
     triggerDialogue("danger", 90);
   }
 
-  // =========================
-  // SAFETY CLAMP
-  // =========================
   ball.vx = constrain(ball.vx, -5, 5);
   ball.vy = constrain(ball.vy, -5, 5);
-
   ball.pulse = lerp(ball.pulse, 0, 0.1);
 
-  // =========================
-  // RENDERING
-  // =========================
+  // Render
   noStroke();
   fill(255);
-  circle(
-    ball.x,
-    ball.y,
-    (ball.radius + ball.pulse) * 2
-  );
+  circle(ball.x, ball.y, (ball.radius + ball.pulse) * 2);
 
   let stretch = map(abs(paddle.speed), 0, 30, 0, 8, true);
-
   rectMode(CENTER);
-  rect(
-    paddle.x,
-    paddle.y,
-    paddle.width + stretch,
-    paddle.height
-  );
+  rect(paddle.x, paddle.y, paddle.width + stretch, paddle.height);
 
-  // =========================
-  // UI / DEBUG
-  // =========================
+  // UI
   fill(180);
   textSize(12);
-  textAlign(LEFT);
-  text(`FPS: ${nf(frameRate(), 2, 1)}`, 10, 20);
   text(`score: ${score}`, 10, 40);
   text(`misses: ${misses}`, 10, 60);
 
-  // =========================
-  // DIALOGUE RENDER
-  // =========================
   if (dialogue.visible) {
     fill(255);
     textSize(16);
@@ -231,15 +202,35 @@ function resetBall() {
   ball.pulse = 10;
 }
 
-function randomFrom(array) {
-  return array[Math.floor(random(array.length))];
+function randomFrom(arr) {
+  return arr[Math.floor(random(arr.length))];
+}
+
+function updateEmotion(event) {
+  switch (event) {
+    case "miss":
+      emotion.timer = 300;
+      emotion.current = misses >= 3 ? "sarcastic" : "calm";
+      break;
+    case "hit":
+      emotion.timer = 240;
+      emotion.current = score >= 5 ? "encouraging" : "calm";
+      break;
+    case "danger":
+      emotion.timer = 180;
+      emotion.current = "tense";
+      break;
+  }
 }
 
 function triggerDialogue(type, duration = 120) {
   if (dialogue.cooldown > 0) return;
 
-  const options = DIALOGUE_POOL[type];
-  if (!options) return;
+  const emotionalSet = DIALOGUE_POOL[type];
+  const options =
+    emotionalSet?.[emotion.current] || emotionalSet?.calm;
+
+  if (!options || options.length === 0) return;
 
   dialogue.text = randomFrom(options);
   dialogue.visible = true;
@@ -254,11 +245,10 @@ function mousePressed() {
   if (!audioStarted) {
     userStartAudio();
     audioStarted = true;
-    console.log("Audio started");
   }
 }
 
-function playBlip(freq = 440, duration = 0.05, amp = 0.3) {
+function playBlip(freq, duration, amp) {
   if (!audioStarted) return;
 
   blip.freq(freq);
