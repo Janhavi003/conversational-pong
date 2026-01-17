@@ -8,7 +8,6 @@ body {
   color: #ffffff;
   font-family: monospace;
 
-  /* CENTER THE GAME */
   display: flex;
   justify-content: center;
   align-items: center;
