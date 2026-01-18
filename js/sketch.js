@@ -5,6 +5,24 @@ import {
   JUICE_CONFIG,
 } from "./config.js";
 
+import {
+  createBall,
+  updateBall,
+  resetBall,
+} from "./game/Ball.js";
+
+import {
+  createPaddle,
+  updatePaddle,
+  paddleHitsBall,
+} from "./game/Paddle.js";
+
+import {
+  createGameState,
+  registerHit,
+  registerMiss,
+} from "./game/GameState.js";
+
 // =========================
 // JUICE STATE
 // =========================
@@ -12,12 +30,11 @@ let shake = { intensity: 0 };
 let hitStop = 0;
 
 // =========================
-// GAME STATE
+// GAME OBJECTS
 // =========================
 let ball;
 let paddle;
-let score = 0;
-let misses = 0;
+let gameState;
 
 // =========================
 // SOUND STATE
@@ -72,22 +89,9 @@ const DIALOGUE_POOL = {
 function setup() {
   createCanvas(800, 500);
 
-  ball = {
-    x: width / 2,
-    y: (height - UI_CONFIG.dialogueHeight) / 2,
-    radius: BALL_CONFIG.radius,
-    vx: BALL_CONFIG.baseVX,
-    vy: BALL_CONFIG.baseVY,
-    pulse: 0,
-  };
-
-  paddle = {
-    x: width / 2,
-    y: height - PADDLE_CONFIG.yOffset,
-    width: PADDLE_CONFIG.width,
-    height: PADDLE_CONFIG.height,
-    speed: 0,
-  };
+  ball = createBall(width, height);
+  paddle = createPaddle(width, height);
+  gameState = createGameState();
 
   blip = new p5.Oscillator("sine");
   blip.freq(440);
@@ -131,10 +135,10 @@ function draw() {
       UI_CONFIG.dialogueHeight
   );
 
-  // Ball movement
-  ball.x += ball.vx;
-  ball.y += ball.vy;
+  // Ball update
+  updateBall(ball);
 
+  // Wall collisions
   if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
     ball.vx *= -1;
     shake.intensity = max(shake.intensity, JUICE_CONFIG.wallShake);
@@ -147,39 +151,29 @@ function draw() {
     playBlip(300, 0.03, 0.15);
   }
 
+  // Miss
   if (
     ball.y - ball.radius >
     height - UI_CONFIG.dialogueHeight
   ) {
-    misses++;
+    registerMiss(gameState);
     updateEmotion("miss");
     triggerDialogue("miss");
     shake.intensity = JUICE_CONFIG.missShake;
     hitStop = JUICE_CONFIG.hitStopMiss;
     playBlip(150, 0.15, 0.25);
-    resetBall();
+    resetBall(ball, width, height);
   }
 
-  let targetX = constrain(mouseX, 0, width);
-  paddle.speed = targetX - paddle.x;
-  paddle.x += paddle.speed * PADDLE_CONFIG.easing;
-
-  paddle.x = constrain(
-    paddle.x,
-    paddle.width / 2,
-    width - paddle.width / 2
+  // Paddle update
+  updatePaddle(
+    paddle,
+    constrain(mouseX, 0, width),
+    width
   );
 
-  let hit =
-    ball.y + ball.radius >
-      paddle.y -
-        UI_CONFIG.dialogueHeight -
-        paddle.height / 2 &&
-    ball.x > paddle.x - paddle.width / 2 &&
-    ball.x < paddle.x + paddle.width / 2 &&
-    ball.vy > 0;
-
-  if (hit) {
+  // Paddle hit
+  if (paddleHitsBall(paddle, ball)) {
     ball.vy *= -1;
     ball.vx += paddle.speed * 0.03;
     ball.vx = constrain(
@@ -188,7 +182,7 @@ function draw() {
       BALL_CONFIG.maxSpeed
     );
 
-    score++;
+    registerHit(gameState);
     updateEmotion("hit");
     shake.intensity = JUICE_CONFIG.hitShake;
     hitStop = JUICE_CONFIG.hitStopHit;
@@ -199,10 +193,12 @@ function draw() {
 
   ball.pulse = lerp(ball.pulse, 0, 0.1);
 
+  // Render ball
   noStroke();
   fill(255);
   circle(ball.x, ball.y, ball.radius * 2);
 
+  // Render paddle
   rectMode(CENTER);
   rect(
     paddle.x,
@@ -218,8 +214,8 @@ function draw() {
   // UI text
   fill(180);
   textSize(12);
-  text(`score: ${score}`, 10, UI_CONFIG.dialogueHeight + 20);
-  text(`misses: ${misses}`, 10, UI_CONFIG.dialogueHeight + 40);
+  text(`score: ${gameState.score}`, 10, UI_CONFIG.dialogueHeight + 20);
+  text(`misses: ${gameState.misses}`, 10, UI_CONFIG.dialogueHeight + 40);
 
   if (dialogue.visible) {
     fill(220);
@@ -234,15 +230,8 @@ function draw() {
 }
 
 // =========================
-// HELPERS
+// HELPERS (unchanged)
 // =========================
-function resetBall() {
-  ball.x = width / 2;
-  ball.y = (height - UI_CONFIG.dialogueHeight) / 2;
-  ball.vx = random(-2, 2);
-  ball.vy = BALL_CONFIG.baseVY;
-}
-
 function randomFrom(arr) {
   return arr[Math.floor(random(arr.length))];
 }
@@ -250,10 +239,12 @@ function randomFrom(arr) {
 function updateEmotion(event) {
   if (event === "miss") {
     emotion.timer = 300;
-    emotion.current = misses >= 3 ? "sarcastic" : "calm";
+    emotion.current =
+      gameState.misses >= 3 ? "sarcastic" : "calm";
   } else if (event === "hit") {
     emotion.timer = 240;
-    emotion.current = score >= 5 ? "encouraging" : "calm";
+    emotion.current =
+      gameState.score >= 5 ? "encouraging" : "calm";
   } else if (event === "danger") {
     emotion.timer = 180;
     emotion.current = "tense";
