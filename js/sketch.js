@@ -1,7 +1,6 @@
 import {
   UI_CONFIG,
   BALL_CONFIG,
-  JUICE_CONFIG,
 } from "./config.js";
 
 // =========================
@@ -56,12 +55,21 @@ import {
 } from "./systems/JuiceSystem.js";
 
 // =========================
+// UI
+// =========================
+import { renderDialogue } from "./ui/DialogueUI.js";
+import { renderHUD } from "./ui/HUD.js";
+
+// =========================
 // CORE OBJECTS
 // =========================
 let ball;
 let paddle;
 let gameState;
 
+// =========================
+// P5 LIFECYCLE (GLOBAL MODE)
+// =========================
 window.setup = function () {
   createCanvas(800, 500);
 
@@ -70,12 +78,12 @@ window.setup = function () {
   gameState = createGameState();
 
   initSound();
-}
+};
 
 window.draw = function () {
-  // =========================
+  // -------------------------
   // HIT STOP
-  // =========================
+  // -------------------------
   if (shouldHitStop()) {
     updateJuice();
     return;
@@ -83,54 +91,52 @@ window.draw = function () {
 
   background(20);
 
-  // =========================
-  // UI PANEL
-  // =========================
+  // -------------------------
+  // DIALOGUE PANEL
+  // -------------------------
   noStroke();
   fill(10);
   rect(0, 0, width, UI_CONFIG.dialogueHeight);
   stroke(60);
   line(0, UI_CONFIG.dialogueHeight, width, UI_CONFIG.dialogueHeight);
 
-  // =========================
+  // -------------------------
   // SYSTEM UPDATES
-  // =========================
+  // -------------------------
   tickEmotion();
   updateDialogue();
   updateJuice();
 
-  // =========================
+  // -------------------------
   // CAMERA (JUICE)
-  // =========================
+  // -------------------------
   const cam = getCameraOffset(UI_CONFIG.dialogueHeight);
   push();
   translate(cam.x, cam.y);
 
-  // =========================
+  // -------------------------
   // BALL UPDATE
-  // =========================
+  // -------------------------
   updateBall(ball);
 
-  // Wall collisions
+  // Side walls
   if (ball.x - ball.radius < 0 || ball.x + ball.radius > width) {
     ball.vx *= -1;
     applyWallJuice();
     playBlip(300, 0.03, 0.15);
   }
 
+  // Top wall
   if (ball.y - ball.radius < 0) {
     ball.vy *= -1;
     applyWallJuice();
     playBlip(300, 0.03, 0.15);
   }
 
-  // =========================
-  // MISS DETECTION
-  // =========================
-  if (
-    ball.y - ball.radius >
-    height - UI_CONFIG.dialogueHeight
-  ) {
+  // -------------------------
+  // MISS
+  // -------------------------
+  if (ball.y - ball.radius > height - UI_CONFIG.dialogueHeight) {
     registerMiss(gameState);
     updateEmotion(
       "miss",
@@ -143,18 +149,18 @@ window.draw = function () {
     resetBall(ball, width, height);
   }
 
-  // =========================
+  // -------------------------
   // PADDLE UPDATE
-  // =========================
+  // -------------------------
   updatePaddle(
     paddle,
     window.constrain(mouseX, 0, width),
     width
   );
 
-  // =========================
+  // -------------------------
   // PADDLE HIT
-  // =========================
+  // -------------------------
   if (paddleHitsBall(paddle, ball)) {
     ball.vy *= -1;
     ball.vx += paddle.speed * 0.03;
@@ -178,9 +184,9 @@ window.draw = function () {
     }
   }
 
-  // =========================
+  // -------------------------
   // DANGER AWARENESS
-  // =========================
+  // -------------------------
   if (
     ball.y >
       height - UI_CONFIG.dialogueHeight - 60 &&
@@ -194,9 +200,9 @@ window.draw = function () {
     triggerDialogue("danger", getEmotion(), 90);
   }
 
-  // =========================
+  // -------------------------
   // RENDER GAME OBJECTS
-  // =========================
+  // -------------------------
   noStroke();
   fill(255);
   circle(ball.x, ball.y, ball.radius * 2);
@@ -211,43 +217,16 @@ window.draw = function () {
 
   pop();
 
-  // =========================
-  // HUD
-  // =========================
-  fill(180);
-  textSize(12);
-  textAlign(LEFT);
-  text(
-    `score: ${gameState.score}`,
-    10,
-    UI_CONFIG.dialogueHeight + 20
-  );
-  text(
-    `misses: ${gameState.misses}`,
-    10,
-    UI_CONFIG.dialogueHeight + 40
-  );
+  // -------------------------
+  // UI
+  // -------------------------
+  renderHUD(gameState);
+  renderDialogue(getDialogueState(), width);
+};
 
-  // =========================
-  // DIALOGUE UI
-  // =========================
-  const dialogue = getDialogueState();
-  if (dialogue.visible) {
-    fill(220);
-    textSize(18);
-    textAlign(CENTER, CENTER);
-    text(
-      dialogue.text,
-      width / 2,
-      UI_CONFIG.dialogueHeight / 2 + dialogue.yOffset
-    );
-  }
-}
-
-// =========================
+// -------------------------
 // AUDIO UNLOCK
-// =========================
+// -------------------------
 window.mousePressed = function () {
   startAudio();
 };
-
