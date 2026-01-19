@@ -59,6 +59,12 @@ import {
 // =========================
 import { renderDialogue } from "./ui/DialogueUI.js";
 import { renderHUD } from "./ui/HUD.js";
+import { renderTitle } from "./ui/TitleUI.js";
+import {
+  renderScanlines,
+  renderVignette,
+  // renderGrain, // optional (heavier)
+} from "./ui/EffectsUI.js";
 
 // =========================
 // CORE OBJECTS
@@ -89,7 +95,8 @@ window.draw = function () {
     return;
   }
 
-  background(20);
+  // Slight CRT / lo-fi tone
+  background(16, 18, 20);
 
   // -------------------------
   // DIALOGUE PANEL
@@ -97,8 +104,12 @@ window.draw = function () {
   noStroke();
   fill(10);
   rect(0, 0, width, UI_CONFIG.dialogueHeight);
+
   stroke(60);
   line(0, UI_CONFIG.dialogueHeight, width, UI_CONFIG.dialogueHeight);
+
+  // Title (engraved hardware feel)
+  renderTitle(width);
 
   // -------------------------
   // SYSTEM UPDATES
@@ -222,6 +233,13 @@ window.draw = function () {
   // -------------------------
   renderHUD(gameState);
   renderDialogue(getDialogueState(), width);
+
+  // -------------------------
+  // ARCADE / LO-FI EFFECTS
+  // -------------------------
+  renderScanlines(width, height);
+  // renderGrain(width, height); // optional
+  renderVignette(width, height);
 };
 
 // -------------------------
