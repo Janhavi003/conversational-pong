@@ -1,6 +1,6 @@
 # 🎮 Conversational Pong
 
-**Conversational Pong** is a minimalist arcade game built with p5.js that observes how you play — and talks back.
+**Conversational Pong** is a minimalist arcade game built with p5.js that observes how you play and talks back.
 
 It’s not just a Pong clone.  
 It’s a small machine with a personality.
@@ -28,7 +28,7 @@ The game:
 - Forms short-term “opinions”
 - Communicates back using text, motion, and sound
 
-The goal is to make the game feel like a **quiet arcade machine** — aware, responsive, and slightly playful.
+The goal is to make the game feel like a **quiet arcade machine** aware, responsive, and slightly playful.
 
 ---
 
@@ -121,7 +121,7 @@ Sound is unlocked on first click to comply with browser policies.
 - **Restraint over spectacle**
 - **Clarity over cleverness**
 
-The game is intentionally small, focused, and replayable in short sessions.
+The game is intentionally small, focused and replayable in short sessions.
 
 ---
 
