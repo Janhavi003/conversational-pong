@@ -63,7 +63,6 @@ import { renderTitle } from "./ui/TitleUI.js";
 import {
   renderScanlines,
   renderVignette,
-  // renderGrain, // optional (heavier)
 } from "./ui/EffectsUI.js";
 
 // =========================
@@ -72,6 +71,12 @@ import {
 let ball;
 let paddle;
 let gameState;
+
+// =========================
+// IDLE / ATTRACT MODE
+// =========================
+let lastInputTime = 0;
+const IDLE_THRESHOLD = 300; // frames (~5 seconds)
 
 // =========================
 // P5 LIFECYCLE (GLOBAL MODE)
@@ -95,8 +100,14 @@ window.draw = function () {
     return;
   }
 
-  // Slight CRT / lo-fi tone
+  // Subtle CRT / lo-fi tone
   background(16, 18, 20);
+
+  // -------------------------
+  // IDLE DETECTION
+  // -------------------------
+  const isIdle =
+    frameCount - lastInputTime > IDLE_THRESHOLD;
 
   // -------------------------
   // DIALOGUE PANEL
@@ -108,8 +119,15 @@ window.draw = function () {
   stroke(60);
   line(0, UI_CONFIG.dialogueHeight, width, UI_CONFIG.dialogueHeight);
 
-  // Title (engraved hardware feel)
-  renderTitle(width);
+  // -------------------------
+  // TITLE (ATTRACT MODE)
+  // -------------------------
+  renderTitle({
+    canvasWidth: width,
+    emotion: getEmotion(),
+    isIdle,
+    frameCount,
+  });
 
   // -------------------------
   // SYSTEM UPDATES
@@ -168,6 +186,11 @@ window.draw = function () {
     window.constrain(mouseX, 0, width),
     width
   );
+
+  // Track player activity via paddle movement
+  if (abs(paddle.speed) > 0.1) {
+    lastInputTime = frameCount;
+  }
 
   // -------------------------
   // PADDLE HIT
@@ -238,13 +261,13 @@ window.draw = function () {
   // ARCADE / LO-FI EFFECTS
   // -------------------------
   renderScanlines(width, height);
-  // renderGrain(width, height); // optional
   renderVignette(width, height);
 };
 
 // -------------------------
-// AUDIO UNLOCK
+// AUDIO + INPUT
 // -------------------------
 window.mousePressed = function () {
+  lastInputTime = frameCount;
   startAudio();
 };
